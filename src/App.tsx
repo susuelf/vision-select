@@ -1,50 +1,71 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+// VisionSelect AI - Main Application
+// Fő alkalmazás komponens
+
+import { useState } from 'react';
+import { Sidebar, ImageGrid } from './components';
+import { scanAndSave } from './api';
+import type { RawFile, ScanResult } from './types';
+import './App.css';
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [selectedFile, setSelectedFile] = useState<RawFile | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  async function handleFolderSelected(path: string) {
+    setCurrentFolder(path);
+    setIsScanning(true);
+    setError(null);
+    setSelectedFile(null);
+    
+    try {
+      const result = await scanAndSave(path, true);
+      setScanResult(result);
+    } catch (err) {
+      console.error('Scan error:', err);
+      setError(err instanceof Error ? err.message : 'Ismeretlen hiba');
+      setScanResult(null);
+    } finally {
+      setIsScanning(false);
+    }
+  }
+
+  function handleImageSelect(file: RawFile) {
+    setSelectedFile(file);
+  }
+
+  function handleImageDoubleClick(file: RawFile) {
+    // TODO: Teljes képnézet megnyitása
+    console.log('Double click:', file.filename);
   }
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
+    <div className="app">
+      <Sidebar
+        currentFolder={currentFolder}
+        scanResult={scanResult}
+        isScanning={isScanning}
+        onFolderSelected={handleFolderSelected}
+      />
+      
+      <main className="main-content">
+        {error && (
+          <div className="error-banner">
+            <span>⚠️ {error}</span>
+            <button onClick={() => setError(null)}>✕</button>
+          </div>
+        )}
+        
+        <ImageGrid
+          files={scanResult?.files ?? []}
+          selectedPath={selectedFile?.path ?? null}
+          onImageSelect={handleImageSelect}
+          onImageDoubleClick={handleImageDoubleClick}
         />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+      </main>
+    </div>
   );
 }
 
