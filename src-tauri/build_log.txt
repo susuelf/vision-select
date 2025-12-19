@@ -1,0 +1,64 @@
+﻿cargo :    Compiling vision-select v0.1.0 (D:\Egyetem\Cu
+lling\vision-select\src-tauri)
+At line:1 char:1
++ cargo build 2>&1 | Out-File -FilePath build_log.txt -E
+ncoding utf8; G ...
++ ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compili 
+   ng vi...lect\src-tauri):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+error[E0433]: failed to resolve: could not find `RawImag
+eData` in `rawloader`
+  --> src\thumbnail.rs:36:45
+   |
+36 |     let pixels: Vec<u8> = if let rawloader::RawImag
+eData::Integer(data) = raw_img.data {
+   |                                             ^^^^^^^
+^^^^^ could not find `RawImageData` in `rawloader`
+
+error[E0425]: cannot find function `decode_file` in crat
+e `rawloader`
+  --> src\thumbnail.rs:29:30
+   |
+29 |     let raw_img = rawloader::decode_file(&path_str)
+   |                              ^^^^^^^^^^^ not found 
+in `rawloader`
+
+warning: unused import: `Result as SqlResult`
+ --> src\database.rs:4:36
+  |
+4 | use rusqlite::{params, Connection, Result as SqlResu
+lt};
+  |                                    ^^^^^^^^^^^^^^^^^
+^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unu
+sed)]`) on by default
+
+warning: private item shadows public glob re-export
+  --> src\lib.rs:16:5
+   |
+16 | use commands::AppState;
+   |     ^^^^^^^^^^^^^^^^^^
+   |
+note: the name `AppState` in the type namespace is suppo
+sed to be publicly re-exported here
+  --> src\lib.rs:13:9
+   |
+13 | pub use commands::*;
+   |         ^^^^^^^^^^^
+note: but the private item here shadows it
+  --> src\lib.rs:16:5
+   |
+16 | use commands::AppState;
+   |     ^^^^^^^^^^^^^^^^^^
+   = note: `#[warn(hidden_glob_reexports)]` on by defaul
+t
+
+Some errors have detailed explanations: E0425, E0433.
+For more information about an error, try `rustc --explai
+n E0425`.
+warning: `vision-select` (lib) generated 2 warnings
+error: could not compile `vision-select` (lib) due to 2 
+previous errors; 2 warnings emitted
