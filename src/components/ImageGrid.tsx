@@ -1,5 +1,5 @@
-// VisionSelect AI - Image Grid Component
-// Képrács a RAW fájlok megjelenítéséhez
+// VisionSelect AI - ImageGrid Component
+// Egyszerűsített: nincs staggered loading, nincs mesterséges késleltetés
 
 import type { RawFile } from '../types';
 import { ImageCard } from './ImageCard';

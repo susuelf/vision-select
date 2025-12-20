@@ -22,6 +22,11 @@ impl AppState {
         let db = Database::new(&db_path)?;
         Ok(Self { db: Mutex::new(db) })
     }
+
+    pub fn new_in_memory() -> Result<Self, VisionError> {
+        let db = Database::new_in_memory()?;
+        Ok(Self { db: Mutex::new(db) })
+    }
 }
 
 /// Mappa szkennelése RAW fájlokért

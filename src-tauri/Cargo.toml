@@ -27,7 +27,7 @@ serde_json = "1"
 
 # RAW és képfeldolgozás
 rawloader = "0.37"
-image = { version = "0.24", features = ["jpeg", "png", "webp"] }
+image = { version = "0.24", default-features = false, features = ["jpeg", "png"] }
 kamadak-exif = "0.5"
 
 # Fájlrendszer
@@ -42,3 +42,13 @@ chrono = { version = "0.4", features = ["serde"] }
 thiserror = "1"
 log = "0.4"
 dirs = "5"
+
+# Parallelizálás és optimalizálás
+rayon = "1.10"
+memmap2 = "0.9"
+num_cpus = "1.16"
+memchr = "2.7"
+byteorder = "1.5"
+
+# jpeg-decoder scale() támogatással
+jpeg-decoder = "0.3"

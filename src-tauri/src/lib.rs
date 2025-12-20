@@ -15,8 +15,9 @@ pub use types::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // App state inicializálása
-    let app_state = AppState::new().expect("Failed to initialize application state");
+    // AppState inicializálása - in-memory adatbázist használunk a stabilitásért
+    let app_state =
+        commands::AppState::new_in_memory().expect("Failed to create in-memory database");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

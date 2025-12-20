@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { Sidebar, ImageGrid } from './components';
-import { scanAndSave } from './api';
+import { scanFolder } from './api';
 import type { RawFile, ScanResult } from './types';
 import './App.css';
 
@@ -21,7 +21,8 @@ function App() {
     setSelectedFile(null);
     
     try {
-      const result = await scanAndSave(path, true);
+      // scanFolder használata scanAndSave helyett - gyorsabb, nem blokkolja az UI-t
+      const result = await scanFolder(path, true);
       setScanResult(result);
     } catch (err) {
       console.error('Scan error:', err);

@@ -1,0 +1,21 @@
+﻿cargo : warning: function `is_valid_raw_file` is never u
+sed
+At line:1 char:1
++ cargo build 2>&1 | Out-File -FilePath build_check.txt 
+-Encoding utf8; ...
++ ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: fu
+n    cti...` is never used:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  --> src\scanner.rs:81:8
+   |
+81 | pub fn is_valid_raw_file(path: &Path) -> bool {
+   |        ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)
+]`) on by default
+
+warning: `vision-select` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] tar
+get(s) in 0.63s

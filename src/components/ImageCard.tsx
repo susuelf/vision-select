@@ -1,8 +1,8 @@
-// VisionSelect AI - Image Card Component
-// Egyedi kép kártya thumbnail-lel és EXIF infóval
+// VisionSelect AI - ImageCard Component
+// Optimalizált: nincs mesterséges késleltetés, megfelelő race condition kezelés
 
-import { useState, useEffect } from 'react';
-import { getThumbnail, getExifSummary } from '../api';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { getThumbnail } from '../api';
 import type { RawFile, ThumbnailData } from '../types';
 import { formatFileSize } from '../types';
 
@@ -20,57 +20,84 @@ export function ImageCard({
   onDoubleClick 
 }: ImageCardProps) {
   const [thumbnail, setThumbnail] = useState<ThumbnailData | null>(null);
-  const [exifSummary, setExifSummary] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
-  
-  useEffect(() => {
-    let isMounted = true;
+  const cardRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadingRef = useRef(false); // Ref a loading state követésére dependency nélkül
+
+  // Thumbnail betöltése - STABIL referenciával (nem függ az isLoading state-től)
+  const loadThumbnail = useCallback(async (signal: AbortSignal) => {
+    if (loadingRef.current) return;
     
-    async function loadData() {
-      setIsLoading(true);
-      setHasError(false);
+    loadingRef.current = true;
+    setIsLoading(true);
+    setHasError(false);
+    
+    try {
+      const thumb = await getThumbnail(file.path, 256);
       
-      try {
-        // Thumbnail betöltése
-        const thumb = await getThumbnail(file.path, 256);
-        if (isMounted) {
-          setThumbnail(thumb);
-        }
-        
-        // EXIF betöltése (opcionális, nem blokkol)
-        try {
-          const exif = await getExifSummary(file.path);
-          if (isMounted) {
-            setExifSummary(exif);
-          }
-        } catch {
-          // EXIF hiba nem kritikus
-        }
-      } catch (error) {
-        console.error('Thumbnail load error:', error);
-        if (isMounted) {
-          setHasError(true);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+      if (!signal.aborted) {
+        setThumbnail(thumb);
+      }
+    } catch (error) {
+      if (!signal.aborted) {
+        console.warn('Thumbnail error:', file.filename);
+        setHasError(true);
+      }
+    } finally {
+      if (!signal.aborted) {
+        loadingRef.current = false;
+        setIsLoading(false);
       }
     }
+  }, [file.path, file.filename]); // Csak a file változásakor jön létre újra
+  
+  // IntersectionObserver setup
+  useEffect(() => {
+    // Reset state when file changes
+    setThumbnail(null);
+    setHasError(false);
+    setIsLoading(false);
+    loadingRef.current = false;
     
-    loadData();
+    const abortController = new AbortController();
     
+    // Observer létrehozása
+    observerRef.current = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          loadThumbnail(abortController.signal);
+          
+          // Lecsatlakozás az observerről - csak egyszer kell betölteni
+          observerRef.current?.disconnect();
+        }
+      },
+      { 
+        rootMargin: '200px', // Növelt előtöltési zóna
+        threshold: 0
+      }
+    );
+    
+    if (cardRef.current) {
+      observerRef.current.observe(cardRef.current);
+    }
+    
+    // Cleanup
     return () => {
-      isMounted = false;
+      abortController.abort();
+      observerRef.current?.disconnect();
+      loadingRef.current = false;
     };
-  }, [file.path]);
+  }, [file.path, loadThumbnail]);
   
   return (
     <div 
+      ref={cardRef}
       className={`image-card ${isSelected ? 'selected' : ''}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      style={{ minHeight: '200px' }} // Layout shift prevention
     >
       <div className="image-card-thumbnail">
         {isLoading && (
@@ -89,8 +116,13 @@ export function ImageCard({
           <img 
             src={thumbnail.data_base64} 
             alt={file.filename}
-            loading="lazy"
+            loading="eager" // Már lazy loadoltuk az observer-rel
+            decoding="async"
           />
+        )}
+        
+        {!thumbnail && !isLoading && !hasError && (
+          <div className="thumbnail-placeholder" />
         )}
       </div>
       
@@ -102,9 +134,6 @@ export function ImageCard({
           <span className="extension">{file.extension.toUpperCase()}</span>
           <span className="size">{formatFileSize(file.size_bytes)}</span>
         </div>
-        {exifSummary && (
-          <div className="exif-summary">{exifSummary}</div>
-        )}
       </div>
     </div>
   );
