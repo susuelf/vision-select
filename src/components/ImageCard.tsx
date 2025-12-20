@@ -1,32 +1,36 @@
 // VisionSelect AI - ImageCard Component
-// Optimalizált: nincs mesterséges késleltetés, megfelelő race condition kezelés
+// Integrált AI elemzés és ScoreCard megjelenítés
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getThumbnail } from '../api';
-import type { RawFile, ThumbnailData } from '../types';
-import { formatFileSize } from '../types';
+import { getThumbnail, analyzeImage } from '../api';
+import type { RawFile, ThumbnailData, QualityScore } from '../types';
+import { formatFileSize, formatScore, getScoreColor } from '../types';
 
 interface ImageCardProps {
   file: RawFile;
   isSelected?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
+  showScore?: boolean;
 }
 
 export function ImageCard({ 
   file, 
   isSelected = false, 
   onClick, 
-  onDoubleClick 
+  onDoubleClick,
+  showScore = true
 }: ImageCardProps) {
   const [thumbnail, setThumbnail] = useState<ThumbnailData | null>(null);
+  const [score, setScore] = useState<QualityScore | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [hasError, setHasError] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadingRef = useRef(false); // Ref a loading state követésére dependency nélkül
+  const loadingRef = useRef(false);
 
-  // Thumbnail betöltése - STABIL referenciával (nem függ az isLoading state-től)
+  // Thumbnail betöltése
   const loadThumbnail = useCallback(async (signal: AbortSignal) => {
     if (loadingRef.current) return;
     
@@ -39,6 +43,23 @@ export function ImageCard({
       
       if (!signal.aborted) {
         setThumbnail(thumb);
+        
+        // AI elemzés indítása miután a thumbnail betöltődött
+        if (showScore) {
+          setIsAnalyzing(true);
+          try {
+            const qualityScore = await analyzeImage(file.path);
+            if (!signal.aborted) {
+              setScore(qualityScore);
+            }
+          } catch (err) {
+            console.warn('AI analysis error:', file.filename);
+          } finally {
+            if (!signal.aborted) {
+              setIsAnalyzing(false);
+            }
+          }
+        }
       }
     } catch (error) {
       if (!signal.aborted) {
@@ -51,30 +72,28 @@ export function ImageCard({
         setIsLoading(false);
       }
     }
-  }, [file.path, file.filename]); // Csak a file változásakor jön létre újra
+  }, [file.path, file.filename, showScore]);
   
   // IntersectionObserver setup
   useEffect(() => {
-    // Reset state when file changes
     setThumbnail(null);
+    setScore(null);
     setHasError(false);
     setIsLoading(false);
+    setIsAnalyzing(false);
     loadingRef.current = false;
     
     const abortController = new AbortController();
     
-    // Observer létrehozása
     observerRef.current = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           loadThumbnail(abortController.signal);
-          
-          // Lecsatlakozás az observerről - csak egyszer kell betölteni
           observerRef.current?.disconnect();
         }
       },
       { 
-        rootMargin: '200px', // Növelt előtöltési zóna
+        rootMargin: '200px',
         threshold: 0
       }
     );
@@ -83,7 +102,6 @@ export function ImageCard({
       observerRef.current.observe(cardRef.current);
     }
     
-    // Cleanup
     return () => {
       abortController.abort();
       observerRef.current?.disconnect();
@@ -97,7 +115,7 @@ export function ImageCard({
       className={`image-card ${isSelected ? 'selected' : ''}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      style={{ minHeight: '200px' }} // Layout shift prevention
+      style={{ minHeight: '200px' }}
     >
       <div className="image-card-thumbnail">
         {isLoading && (
@@ -116,13 +134,35 @@ export function ImageCard({
           <img 
             src={thumbnail.data_base64} 
             alt={file.filename}
-            loading="eager" // Már lazy loadoltuk az observer-rel
+            loading="eager"
             decoding="async"
           />
         )}
         
         {!thumbnail && !isLoading && !hasError && (
           <div className="thumbnail-placeholder" />
+        )}
+
+        {/* AI Score Badge Overlay */}
+        {score && !isAnalyzing && (
+          <div 
+            className="score-badge-overlay"
+            title={`Élesség: ${formatScore(score.sharpness)} | Expozíció: ${formatScore(score.exposure)}`}
+          >
+            <div 
+              className="score-badge"
+              style={{ backgroundColor: getScoreColor(score.overall) }}
+            >
+              {formatScore(score.overall)}
+            </div>
+          </div>
+        )}
+
+        {/* Analyzing indicator */}
+        {isAnalyzing && (
+          <div className="analyzing-indicator">
+            <div className="analyzing-pulse" />
+          </div>
         )}
       </div>
       
