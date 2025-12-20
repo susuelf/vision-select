@@ -88,3 +88,34 @@ export async function scanAndSave(path: string, recursive: boolean = true): Prom
 export async function getAppVersion(): Promise<string> {
   return invoke<string>('get_app_version');
 }
+
+// === AI Elemzési API (Phase II) ===
+
+import type { QualityScore, ImageGroup, BatchAnalysisResult } from './types';
+
+/**
+ * Egyetlen kép minőségi elemzése
+ */
+export async function analyzeImage(path: string): Promise<QualityScore> {
+  return invoke<QualityScore>('analyze_image', { path });
+}
+
+/**
+ * Több kép elemzése egyszerre
+ */
+export async function analyzeBatch(paths: string[]): Promise<BatchAnalysisResult> {
+  return invoke<BatchAnalysisResult>('analyze_batch', { paths });
+}
+
+/**
+ * Képek csoportosítása időbélyeg alapján
+ */
+export async function getImageGroups(
+  folder: string, 
+  thresholdSecs?: number
+): Promise<ImageGroup[]> {
+  return invoke<ImageGroup[]>('get_image_groups', { 
+    folder, 
+    thresholdSecs: thresholdSecs ?? null 
+  });
+}

@@ -5,12 +5,16 @@
 mod commands;
 mod database;
 mod exif;
+mod grouping;
+mod quality_analyzer;
 mod scanner;
 mod thumbnail;
 mod types;
 
 // Re-exportálás
 pub use commands::*;
+pub use grouping::*;
+pub use quality_analyzer::*;
 pub use types::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -25,14 +29,23 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
+            // Fájlrendszer
             commands::scan_folder,
+            commands::scan_and_save,
+            // Thumbnail
             commands::get_thumbnail,
             commands::get_thumbnails,
+            // EXIF
             commands::get_exif,
             commands::get_exif_summary,
+            // Adatbázis
             commands::save_image,
             commands::get_images_from_db,
-            commands::scan_and_save,
+            // AI Elemzés (Phase II)
+            commands::analyze_image,
+            commands::analyze_batch,
+            commands::get_image_groups,
+            // Verzió
             commands::get_app_version,
         ])
         .run(tauri::generate_context!())

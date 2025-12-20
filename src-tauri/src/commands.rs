@@ -174,3 +174,114 @@ pub fn scan_and_save(
 pub fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
+
+// === AI Elemzési Parancsok (Phase II) ===
+
+use crate::grouping::{
+    group_by_timestamp, rank_group_images, GroupingConfig, ImageGroup, RankedGroup,
+};
+use crate::quality_analyzer::{QualityAnalyzer, QualityScore};
+use std::collections::HashMap;
+
+/// Egyetlen kép minőségi elemzése
+#[tauri::command]
+pub fn analyze_image(path: String) -> Result<QualityScore, String> {
+    let path_buf = PathBuf::from(&path);
+
+    if !path_buf.exists() {
+        return Err(format!("A fájl nem létezik: {}", path));
+    }
+
+    // Kép betöltése
+    let img = image::open(&path_buf).map_err(|e| format!("Kép betöltési hiba: {}", e))?;
+
+    // Elemzés
+    let analyzer = QualityAnalyzer::default();
+    analyzer.analyze(&img).map_err(|e| e.to_string())
+}
+
+/// Batch kép elemzés eredménye
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BatchAnalysisResult {
+    pub scores: HashMap<String, QualityScore>,
+    pub total: usize,
+    pub successful: usize,
+    pub failed: usize,
+}
+
+/// Több kép elemzése egyszerre
+#[tauri::command]
+pub fn analyze_batch(paths: Vec<String>) -> Result<BatchAnalysisResult, String> {
+    let analyzer = QualityAnalyzer::default();
+    let mut scores: HashMap<String, QualityScore> = HashMap::new();
+    let mut successful = 0;
+    let mut failed = 0;
+    let total = paths.len();
+
+    for path in &paths {
+        let path_buf = PathBuf::from(path);
+
+        if !path_buf.exists() {
+            failed += 1;
+            continue;
+        }
+
+        match image::open(&path_buf) {
+            Ok(img) => match analyzer.analyze(&img) {
+                Ok(score) => {
+                    scores.insert(path.clone(), score);
+                    successful += 1;
+                }
+                Err(_) => {
+                    failed += 1;
+                }
+            },
+            Err(_) => {
+                failed += 1;
+            }
+        }
+    }
+
+    Ok(BatchAnalysisResult {
+        scores,
+        total,
+        successful,
+        failed,
+    })
+}
+
+/// Képek csoportosítása időbélyeg alapján
+#[tauri::command]
+pub fn get_image_groups(
+    state: State<AppState>,
+    folder: String,
+    threshold_secs: Option<i64>,
+) -> Result<Vec<ImageGroup>, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    let folder_path = PathBuf::from(&folder);
+
+    // Képek lekérése az adatbázisból
+    let images = db
+        .get_images_by_folder(&folder_path)
+        .map_err(|e| e.to_string())?;
+
+    // Csoportosítási konfiguráció
+    let config = GroupingConfig {
+        burst_threshold_secs: threshold_secs.unwrap_or(3),
+        ..Default::default()
+    };
+
+    // Csoportosítás
+    let groups = group_by_timestamp(&images, &config);
+
+    Ok(groups)
+}
+
+/// Csoport rangsorolása AI pontszámokkal
+#[tauri::command]
+pub fn get_ranked_group(
+    group: ImageGroup,
+    scores: HashMap<String, QualityScore>,
+) -> Result<RankedGroup, String> {
+    Ok(rank_group_images(&group, &scores))
+}

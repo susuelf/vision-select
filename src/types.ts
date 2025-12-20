@@ -115,3 +115,74 @@ export function formatExifSummary(exif: ExifData | null): string {
 
   return parts.join(" | ");
 }
+
+// === AI Elemzési Típusok (Phase II) ===
+
+/**
+ * Minőségi pontszám
+ */
+export interface QualityScore {
+  /** Élesség (0.0 - 1.0) */
+  sharpness: number;
+  /** Expozíció (0.0 - 1.0) */
+  exposure: number;
+  /** Kontraszt (0.0 - 1.0) */
+  contrast: number;
+  /** Zaj becslés (0.0 = zajos, 1.0 = tiszta) */
+  noise_estimate: number;
+  /** Összesített pontszám */
+  overall: number;
+}
+
+/**
+ * Csoport típusok
+ */
+export type GroupType = 'Burst' | 'Bracket' | 'TimeLapse' | 'Manual' | 'Single';
+
+/**
+ * Kép csoport
+ */
+export interface ImageGroup {
+  id: number;
+  name: string | null;
+  images: string[];
+  group_type: GroupType;
+  best_image: string | null;
+  capture_start: string | null;
+  capture_end: string | null;
+}
+
+/**
+ * Batch elemzés eredménye
+ */
+export interface BatchAnalysisResult {
+  scores: Record<string, QualityScore>;
+  total: number;
+  successful: number;
+  failed: number;
+}
+
+/**
+ * Rangsorolt csoport
+ */
+export interface RankedGroup {
+  group: ImageGroup;
+  ranked_images: string[];
+  scores: Record<string, QualityScore>;
+}
+
+/**
+ * Pontszám formázása százalékként
+ */
+export function formatScore(score: number): string {
+  return `${Math.round(score * 100)}%`;
+}
+
+/**
+ * Pontszám színe (piros-sárga-zöld)
+ */
+export function getScoreColor(score: number): string {
+  if (score >= 0.7) return '#22c55e'; // Zöld
+  if (score >= 0.4) return '#eab308'; // Sárga
+  return '#ef4444'; // Piros
+}
